@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: prototurk_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command: >
+      bash -c "
+        psql -U postgres -c \"CREATE USER prototurk WITH PASSWORD 'prototurk123' CREATEDB;\" &&
+        psql -U postgres -c \"CREATE DATABASE prototurk OWNER prototurk;\" &&
+        psql -U prototurk -d prototurk -f /docker-entrypoint-initdb.d/001_create_users_table.sql
+      "
+
+volumes:
+  postgres_data: 
