@@ -6,13 +6,13 @@ ProtoTürk, Türkçe soru-cevap platformudur. Bu repository, platformun Go ile y
 
 Projeyi çalıştırmadan önce aşağıdaki yazılımların kurulu olduğundan emin olun:
 
-- [Go 1.21](https://golang.org/doc/install) veya üzeri
+- [Go 1.23](https://golang.org/doc/install) veya üzeri
 - [Docker](https://docs.docker.com/get-docker/)
 - [Docker Compose](https://docs.docker.com/compose/install/)
 
 ## Teknolojiler
 
-- Go 1.21
+- Go 1.23
 - PostgreSQL
 - GORM (ORM)
 - Gin (Web Framework)
@@ -34,8 +34,7 @@ Projeyi çalıştırmadan önce aşağıdaki yazılımların kurulu olduğundan 
 ├── pkg/
 │   ├── response/       # Global response yapısı
 │   └── errors/         # Global error yapısı
-├── migrations/         # Database migrasyonları
-└── config/            # Konfigürasyon dosyaları
+└── migrations/         # Database migrasyonları
 ```
 
 ## Kurulum
@@ -67,8 +66,8 @@ cp .env.example .env
 PORT=8080
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=prototurk
-DB_PASSWORD=prototurk123
+DB_USER=postgres
+DB_PASSWORD=postgres
 DB_NAME=prototurk
 JWT_SECRET=your-secret-key-here
 ```
@@ -130,10 +129,19 @@ go install github.com/air-verse/air@latest
 export PATH=$PATH:$(go env GOPATH)/bin
 ```
 
-2. Uygulamayı Air ile başlatın:
+2. `.air.toml` dosyası projede hazır olarak gelir. Air'i başlatın:
 ```bash
 air
 ```
+
+### API Test Etme
+
+Projeyle birlikte gelen Postman collection'ını kullanabilirsiniz:
+
+1. Postman'i açın
+2. Import > Upload Files
+3. `prototurk.postman_collection.json` dosyasını seçin
+4. Collection içindeki istekleri kullanmaya başlayın
 
 ## API Endpoints
 
