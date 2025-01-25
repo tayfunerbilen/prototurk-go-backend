@@ -2,6 +2,14 @@
 
 ProtoTürk, Türkçe soru-cevap platformudur. Bu repository, platformun Go ile yazılmış backend API'sini içerir.
 
+## Gereksinimler
+
+Projeyi çalıştırmadan önce aşağıdaki yazılımların kurulu olduğundan emin olun:
+
+- [Go 1.21](https://golang.org/doc/install) veya üzeri
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+
 ## Teknolojiler
 
 - Go 1.21
@@ -32,34 +40,35 @@ ProtoTürk, Türkçe soru-cevap platformudur. Bu repository, platformun Go ile y
 
 ## Kurulum
 
-1. PostgreSQL'i yükleyin ve bir veritabanı oluşturun:
+1. Repository'yi klonlayın:
 ```bash
-createdb prototurk
+git clone https://github.com/tayfunerbilen/prototurk-go-backend
+cd prototurk-go-backend
 ```
 
-2. Repository'yi klonlayın:
+2. Docker Compose ile PostgreSQL'i başlatın (veritabanı ve kullanıcı otomatik oluşturulacaktır):
 ```bash
-git clone <repo-url>
-cd prototurk
+docker compose up -d
 ```
 
 3. Gerekli Go paketlerini yükleyin:
 ```bash
 go mod download
+go mod tidy
 ```
 
-4. `.env` dosyasını oluşturun:
+4. Örnek çevre değişkenleri dosyasını kopyalayın:
 ```bash
 cp .env.example .env
 ```
 
-5. `.env` dosyasını düzenleyin:
+5. `.env` dosyasını düzenleyin (Docker Compose ile uyumlu değerler):
 ```env
 PORT=8080
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=postgres
+DB_USER=prototurk
+DB_PASSWORD=prototurk123
 DB_NAME=prototurk
 JWT_SECRET=your-secret-key-here
 ```
@@ -68,6 +77,48 @@ JWT_SECRET=your-secret-key-here
 ```bash
 go run cmd/api/main.go
 ```
+
+7. API http://localhost:8080 adresinde çalışmaya başlayacaktır.
+
+### Olası Sorunlar ve Çözümleri
+
+1. PostgreSQL bağlantı hatası alırsanız:
+   - Docker konteynerinin çalıştığından emin olun: `docker ps`
+   - Veritabanı bağlantı bilgilerinin doğru olduğunu kontrol edin
+   - Docker loglarını kontrol edin: `docker logs prototurk_db`
+
+2. Go paketleri ile ilgili sorun yaşarsanız:
+   - Go modüllerini temizleyip tekrar yükleyin:
+     ```bash
+     go clean -modcache
+     go mod download
+     ```
+
+3. Go versiyon hatası alırsanız:
+   - Projenin Go 1.23 veya üstünü gerektirdiğinden emin olun
+   - Sisteminizde yüklü Go versiyonunu kontrol edin: `go version`
+   - Eğer eski bir versiyon yüklüyse, Go'yu güncelleyin:
+     ```bash
+     # macOS için:
+     brew install go
+     # Yeni bir terminal açın ve versiyon kontrolü yapın:
+     go version  # Go 1.23 veya üstü olmalı
+     ```
+   - go.mod dosyasında Go versiyonunun 1.23 olduğundan emin olun:
+     ```go
+     module prototurk
+     
+     go 1.23
+     ```
+
+4. "invalid go version" hatası alırsanız:
+   - Bu hata genellikle go.mod dosyasındaki versiyon formatının yanlış olmasından kaynaklanır
+   - go.mod dosyasındaki versiyon formatının doğru olduğundan emin olun (örn: "1.23" şeklinde olmalı, "1.23.5" değil)
+
+5. Docker Compose hataları:
+   - Docker'ın yüklü ve çalışır durumda olduğundan emin olun
+   - Docker Compose versiyonunuzun güncel olduğundan emin olun
+   - PostgreSQL portunu (5432) başka bir uygulama kullanıyorsa, docker-compose.yml dosyasında portu değiştirin
 
 ### Development Ortamı
 
