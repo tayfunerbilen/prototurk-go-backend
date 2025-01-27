@@ -11,6 +11,15 @@ ProtoTürk, Türkçe soru-cevap platformudur. Bu repository, platformun Go ile y
 - JWT (Authentication)
 - Air (Hot Reload)
 
+## Zaman Yönetimi
+
+Tüm tarih ve zaman işlemleri UTC+0 olarak kaydedilir ve yönetilir:
+
+- Veritabanında tüm timestamp'ler `TIMESTAMP WITH TIME ZONE` tipinde ve UTC+0 olarak saklanır
+- Tüm zaman işlemleri için `pkg/utils/time.go` içindeki UTC-aware fonksiyonlar kullanılır
+- GORM model hook'ları (`BeforeCreate`, `BeforeUpdate`) ile tüm timestamp'lerin UTC olması garanti edilir
+- JWT token'ları için expiration time UTC olarak hesaplanır
+
 ## Proje Yapısı
 
 ```
@@ -86,7 +95,7 @@ air
 
 ## API Endpoints
 
-### Auth
+### Auth (User)
 
 #### Register
 - **POST** `/api/auth/register`
@@ -109,6 +118,88 @@ air
 
 #### Me (Authentication Required)
 - **GET** `/api/auth/me`
+- Headers:
+  - Authorization: Bearer <token>
+
+#### Update Profile (Authentication Required)
+- **PUT** `/api/auth/profile`
+- Headers:
+  - Authorization: Bearer <token>
+```json
+{
+    "username": "new_username",  // optional
+    "email": "new@example.com"   // optional
+}
+```
+Not: `username` ve `email` alanlarından en az birinin gönderilmesi gerekir. İki alan da opsiyoneldir.
+
+#### Update Password (Authentication Required)
+- **PUT** `/api/auth/password`
+- Headers:
+  - Authorization: Bearer <token>
+```json
+{
+    "current_password": "mevcut123",
+    "new_password": "yeni123"
+}
+```
+
+### Admin
+
+#### Login
+- **POST** `/api/admin/login`
+```json
+{
+    "email": "admin@example.com",
+    "password": "123456"
+}
+```
+
+#### Me (Admin Authentication Required)
+- **GET** `/api/admin/me`
+- Headers:
+  - Authorization: Bearer <token>
+
+#### Create Admin (Super Admin Only)
+- **POST** `/api/admin`
+- Headers:
+  - Authorization: Bearer <token>
+```json
+{
+    "email": "newadmin@example.com",
+    "name": "New Admin",
+    "password": "123456",
+    "role": "admin",        // super_admin, admin, editor
+    "status": "active"      // active, passive
+}
+```
+
+#### List Admins (Admin Authentication Required)
+- **GET** `/api/admin`
+- Headers:
+  - Authorization: Bearer <token>
+
+#### Get Admin (Admin Authentication Required)
+- **GET** `/api/admin/:id`
+- Headers:
+  - Authorization: Bearer <token>
+
+#### Update Admin (Super Admin or Self)
+- **PUT** `/api/admin/:id`
+- Headers:
+  - Authorization: Bearer <token>
+```json
+{
+    "email": "updated@example.com",     // optional
+    "name": "Updated Name",             // optional
+    "password": "newpass",              // optional
+    "role": "editor",                   // optional
+    "status": "passive"                 // optional
+}
+```
+
+#### Delete Admin (Super Admin Only)
+- **DELETE** `/api/admin/:id`
 - Headers:
   - Authorization: Bearer <token>
 
@@ -141,11 +232,16 @@ air
 - `VALIDATION_ERROR`: İstek validasyonu başarısız
 - `SERVER_ERROR`: Sunucu hatası
 - `UNAUTHORIZED`: Yetkilendirme hatası
+- `FORBIDDEN`: Yetki yetersiz
 - `USERNAME_EXISTS`: Kullanıcı adı zaten mevcut
 - `EMAIL_EXISTS`: Email zaten mevcut
 - `INVALID_CREDENTIALS`: Geçersiz kullanıcı adı/email veya şifre
 - `USER_BANNED`: Kullanıcı yasaklanmış
 - `USER_NOT_FOUND`: Kullanıcı bulunamadı
+- `ACCOUNT_INACTIVE`: Hesap aktif değil
+- `NOT_FOUND`: Kayıt bulunamadı
+- `INVALID_ROLE`: Geçersiz rol
+- `INVALID_STATUS`: Geçersiz durum
 
 ## User Status
 
@@ -180,4 +276,4 @@ git commit -m "feat: add new feature"
 - [ ] Test coverage
 - [ ] API documentation (Swagger)
 - [ ] Docker deployment
-- [ ] CI/CD pipeline 
+- [ ] CI/CD pipeline

@@ -26,28 +26,62 @@ func main() {
 		DBName:   os.Getenv("DB_NAME"),
 	}
 
+	// Run migrations
+	if err := database.RunMigrations(dbConfig); err != nil {
+		log.Fatal("Error running migrations:", err)
+	}
+
 	db, err := database.NewConnection(dbConfig)
 	if err != nil {
 		log.Fatal("Database connection error:", err)
 	}
 
+	// Seed default admin
+	if err := database.SeedDefaultAdmin(db); err != nil {
+		log.Fatal("Error seeding default admin:", err)
+	}
+
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(db)
+	adminHandler := handlers.NewAdminHandler(db)
 
 	// Initialize Gin router
 	router := gin.Default()
 
-	// Apply global middleware
-	router.Use(middleware.JWT())
+	// JWT secret'ı global olarak ekle
+	router.Use(func(c *gin.Context) {
+		c.Set("jwt_secret", os.Getenv("JWT_SECRET"))
+		c.Set("db", db)
+		c.Next()
+	})
 
 	// Routes
 	api := router.Group("/api")
 	{
+		// User routes
 		auth := api.Group("/auth")
 		{
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
 			auth.GET("/me", authHandler.Me)
+			auth.PUT("/profile", authHandler.UpdateProfile)
+			auth.PUT("/password", authHandler.UpdatePassword)
+		}
+
+		// Admin routes
+		admin := api.Group("/admin")
+		admin.Use(middleware.AdminJWT())
+		{
+			// Auth
+			admin.POST("/login", adminHandler.Login)
+			admin.GET("/me", adminHandler.Me)
+
+			// CRUD
+			admin.POST("", adminHandler.Create)
+			admin.GET("", adminHandler.List)
+			admin.GET("/:id", adminHandler.Get)
+			admin.PUT("/:id", adminHandler.Update)
+			admin.DELETE("/:id", adminHandler.Delete)
 		}
 	}
 

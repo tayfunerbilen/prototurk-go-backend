@@ -6,6 +6,7 @@ import (
 
 	"prototurk/internal/models"
 	"prototurk/pkg/response"
+	"prototurk/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -85,13 +86,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Update last login date
-	h.db.Model(&user).Update("last_login_date", time.Now())
+	h.db.Model(&user).Update("last_login_date", utils.Now())
 
 	// Generate JWT token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id":  user.ID,
 		"username": user.Username,
-		"exp":      time.Now().Add(time.Hour * 24 * 7).Unix(), // 7 days
+		"exp":      utils.Now().Add(time.Hour * 24 * 7).Unix(), // 7 days
 	})
 
 	tokenString, err := token.SignedString([]byte(c.MustGet("jwt_secret").(string)))
@@ -120,4 +121,108 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response.Success(user))
+}
+
+// UpdateProfile handles the profile update request
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, response.Error("UNAUTHORIZED", "User not authenticated", nil))
+		return
+	}
+
+	var req models.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.Error("VALIDATION_ERROR", "Invalid request body", err.Error()))
+		return
+	}
+
+	if !req.Validate() {
+		c.JSON(http.StatusBadRequest, response.Error("VALIDATION_ERROR", "At least one field (username or email) must be provided", nil))
+		return
+	}
+
+	var user models.User
+	if err := h.db.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, response.Error("USER_NOT_FOUND", "User not found", nil))
+		return
+	}
+
+	// Check username uniqueness if provided
+	if req.Username != "" && req.Username != user.Username {
+		var existingUser models.User
+		if err := h.db.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
+			c.JSON(http.StatusConflict, response.Error("USERNAME_EXISTS", "Username already exists", nil))
+			return
+		}
+	}
+
+	// Check email uniqueness if provided
+	if req.Email != "" && req.Email != user.Email {
+		var existingUser models.User
+		if err := h.db.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
+			c.JSON(http.StatusConflict, response.Error("EMAIL_EXISTS", "Email already exists", nil))
+			return
+		}
+	}
+
+	// Update only provided fields
+	updates := make(map[string]interface{})
+	if req.Username != "" {
+		updates["username"] = req.Username
+	}
+	if req.Email != "" {
+		updates["email"] = req.Email
+	}
+
+	if err := h.db.Model(&user).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, response.Error("SERVER_ERROR", "Error updating profile", nil))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(user))
+}
+
+// UpdatePassword handles the password update request
+func (h *AuthHandler) UpdatePassword(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, response.Error("UNAUTHORIZED", "User not authenticated", nil))
+		return
+	}
+
+	var req models.UpdatePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.Error("VALIDATION_ERROR", "Invalid request body", err.Error()))
+		return
+	}
+
+	var user models.User
+	if err := h.db.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, response.Error("USER_NOT_FOUND", "User not found", nil))
+		return
+	}
+
+	// Mevcut parolayı kontrol et
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.CurrentPassword)); err != nil {
+		c.JSON(http.StatusUnauthorized, response.Error("INVALID_PASSWORD", "Current password is incorrect", nil))
+		return
+	}
+
+	// Yeni parolayı hashle
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, response.Error("SERVER_ERROR", "Error processing request", nil))
+		return
+	}
+
+	// Parolayı güncelle
+	if err := h.db.Model(&user).Update("password", string(hashedPassword)).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, response.Error("SERVER_ERROR", "Error updating password", nil))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(gin.H{
+		"message": "Password updated successfully",
+	}))
 }
